@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 [CreateAssetMenu()]
 public class GameData : ScriptableObject {
-    
-    public List<Item> itemList = new List<Item>();
+
+    [SerializeField] private bool enableDebugMode;
+
+    public List<ItemData> itemList = new List<ItemData>();
 
 }

@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class GameInput : MonoBehaviour {
+public class InputManager : MonoBehaviour {
 
     private struct ScreenBounds
     {
@@ -12,7 +12,7 @@ public class GameInput : MonoBehaviour {
         public float yMin;
     }
 
-    [Range(0f, 0.9f), Tooltip("Percentage of screen that is ignored when screen is tapped")]
+    [Range(0f, 0.9f), Tooltip("Percentage of screen that is ignored when screen is tapped.")]
     public float tapRangeX, tapRangeY;
 
     private ScreenBounds screenBounds;
@@ -25,18 +25,15 @@ public class GameInput : MonoBehaviour {
 
     private void Update()
     {
-#if UNITY_EDITOR
-        if (Input.GetMouseButtonDown(0) && ValidTap(Input.mousePosition))
+        //Non-Touch Input for in Editor
+        if (Application.isEditor && Input.GetMouseButtonDown(0) && ValidTap(Input.mousePosition))
         {
             taps++;
             Debug.Log(taps);
         }
-#endif
-#if UNITY_ANDROID
-        if(Input.GetTouch(0).phase == TouchPhase.Began && ValidTap(Input.GetTouch(0).position)){
+        else if(Input.GetTouch(0).phase == TouchPhase.Began && ValidTap(Input.GetTouch(0).position)){
             taps++;
         }
-#endif
     }
 
     private void CalculateScreenBounds()

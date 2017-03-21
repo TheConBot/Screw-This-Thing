@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu()]
-public class Item : ScriptableObject
+public class ItemData : ScriptableObject
 {
     public string displayName;
     public int tapGoal;

@@ -3,25 +3,29 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
-public class ItemManager : MonoBehaviour {
+public class Item : MonoBehaviour {
 
-    public int taps;
+    public enum SoundType
+    {
+        Organic,
+        Metal
+    }
+
+    public int tapCount { private get; set; }
+    public SoundType soundType;
     private int tapLimit = 50;
     private Rigidbody body;
-
-    private GameInput gameInput;
 
     private void Awake()
     {
         body = GetComponent<Rigidbody>();
         body.isKinematic = true;
-        gameInput = Camera.main.GetComponent<GameInput>();
     }
 
 	private void Update()
     {
-        taps = gameInput.taps;
-        if(taps >= tapLimit)
+        //taps = gameInput.taps;
+        if(tapCount >= tapLimit)
         {
             Boom();
         }
