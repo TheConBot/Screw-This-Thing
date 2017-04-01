@@ -19,6 +19,14 @@ public class ItemGenerator : EditorWindow
         I,
         J
     }
+    private enum SortBy
+    {
+        Round = Collumn.A,
+        Scale = Collumn.B,
+        Time = Collumn.C,
+        Taps = Collumn.F
+    }
+    private SortBy sortBy;
     private TextAsset spreadsheet;
     private string savePath;
 
@@ -30,9 +38,10 @@ public class ItemGenerator : EditorWindow
 
     private void OnGUI()
     {
-        GUILayout.Label("Item Generator", EditorStyles.boldLabel);
+        GUILayout.Label("Options", EditorStyles.boldLabel);
         spreadsheet = (TextAsset)EditorGUILayout.ObjectField("SpreadSheet", spreadsheet, typeof(TextAsset), false);
         savePath = EditorGUILayout.TextField("Items Folder Path", savePath);
+        sortBy = (SortBy)EditorGUILayout.EnumPopup("Item Sorting", sortBy);
         GUILayout.FlexibleSpace();
         if (GUILayout.Button("Generate Items"))
         {
@@ -42,7 +51,7 @@ public class ItemGenerator : EditorWindow
 
     private void GenerateItems()
     {
-        if (!spreadsheet)
+        if (spreadsheet == null)
         {
             Debug.LogError("No spreadsheet entered, assign in the Item Generator inspector.");
             return;
@@ -52,97 +61,77 @@ public class ItemGenerator : EditorWindow
             Debug.LogError("Invalid file path, assign in the Item Generator insepctor.");
             return;
         }
-
+        else
+        {
+            Debug.Log("***ITEM GENERATION START***");
+        }
         string[] lines = spreadsheet.text.Split('\n');
 
         for (int i = 0; i < lines.Length; i++)
         {
-            string[] lineComponents = lines[i].Split(',');
-            bool createNewAsset = false;
-            int tempInt = 0;
-            float tempFloat = 0;
-            Collumn currentCollumn = Collumn.A;
+            Collumn currentCollumn;
             ItemData data = null;
+            bool createNewAsset = false;
+            int currentRow = i + 1;
+            string[] lineComponents = lines[i].Split(',');
 
+            //Check to see if the item already exists or not
+            if ((data = AssetDatabase.LoadAssetAtPath<ItemData>(GenerateFullPath(savePath, GenerateFileName(lineComponents[(int)Collumn.E], lineComponents[(int)sortBy])))) == null)
+            {
+                data = CreateInstance<ItemData>();
+                createNewAsset = true;
+            }
+            currentCollumn = Collumn.A;
             //Check to see if the current row in the spreadsheet is valid
-            if (int.TryParse(lineComponents[CollumnToInt(currentCollumn)], out tempInt))
+            if (!int.TryParse(lineComponents[(int)currentCollumn], out data.roundNumber))
             {
-                //Check to see if the item already exists or not
-                if (AssetDatabase.LoadAssetAtPath<ItemData>(GenerateFullPath(savePath, lineComponents[CollumnToInt(Collumn.E)])) != null)
-                {
-                    data = AssetDatabase.LoadAssetAtPath<ItemData>(GenerateFullPath(savePath, lineComponents[4]));
-                }
-                else
-                {
-                    data = CreateInstance<ItemData>();
-                    createNewAsset = true;
-                }
-                //Fill in item parameters
-                data.roundNumber = tempInt;
-
-                currentCollumn = Collumn.B;
-                if (int.TryParse(lineComponents[CollumnToInt(currentCollumn)], out tempInt))
-                {
-                    data.itemScale = tempInt;
-                }
-                else
-                {
-                    DisplayItemError(i + 1, currentCollumn);
-                    return;
-                }
-
-                currentCollumn = Collumn.C;
-                if (float.TryParse(lineComponents[CollumnToInt(currentCollumn)], out tempFloat))
-                {
-                    data.roundTime = tempFloat;
-                }
-                else
-                {
-                    DisplayItemError(i + 1, currentCollumn);
-                    return;
-                }
-
-                currentCollumn = Collumn.E;
-                if (data.displayName != "")
-                {
-                    data.displayName = lineComponents[CollumnToInt(currentCollumn)];
-                }
-                else
-                {
-                    DisplayItemError(i + 1, currentCollumn);
-                    return;
-                }
-
-                currentCollumn = Collumn.F;
-                if (int.TryParse(lineComponents[CollumnToInt(currentCollumn)], out tempInt))
-                {
-                    data.tapGoal = tempInt;
-                }
-                else
-                {
-                    DisplayItemError(i + 1, currentCollumn);
-                    return;
-                }
-                //Save the new data or overwrite the old data
-                SaveAsset(data, savePath, data.roundNumber + ". " + data.displayName, createNewAsset);
+                DisplayItemError(currentRow, currentCollumn);
+                continue;
             }
-            else
+            currentCollumn = Collumn.B;
+            if (!int.TryParse(lineComponents[(int)currentCollumn], out data.itemScale))
             {
-                Debug.LogWarning("Row " + (i + 1) + " is invalid, skipping...");
+                DisplayItemError(currentRow, currentCollumn);
+                continue;
             }
+            currentCollumn = Collumn.C;
+            if (!float.TryParse(lineComponents[(int)currentCollumn], out data.roundTime))
+            {
+                DisplayItemError(currentRow, currentCollumn);
+                continue;
+            }
+            currentCollumn = Collumn.E;
+            if ((data.displayName = lineComponents[(int)currentCollumn]) == "")
+            {
+                DisplayItemError(currentRow, currentCollumn);
+                continue;
+            }
+            currentCollumn = Collumn.F;
+            if (!int.TryParse(lineComponents[(int)currentCollumn], out data.tapGoal))
+            {
+                DisplayItemError(currentRow, currentCollumn);
+                continue;
+            }
+
+            //Save the new data or overwrite the old data
+            SaveAsset(data, savePath, GenerateFileName(data.displayName, lineComponents[(int)sortBy]), createNewAsset);
+            DisplayItemSuccess(currentRow, data);
         }
-
+        RefreshEditor();
+        Debug.Log("***ITEM GENERATION COMPLETE***");
     }
 
     private void SaveAsset(Object asset, string path, string fileName, bool createNewAsset)
     {
         //string assetPathAndName = AssetDatabase.GenerateUniqueAssetPath(path + "/" + fileName + ".asset");
         if (createNewAsset) AssetDatabase.CreateAsset(asset, GenerateFullPath(path, fileName));
+    }
+
+    private void RefreshEditor()
+    {
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         EditorUtility.FocusProjectWindow();
-        Selection.activeObject = asset;
-        Debug.Log(fileName + " successfully created/updated!");
     }
 
     private string GenerateFullPath(string path, string fileName)
@@ -150,13 +139,19 @@ public class ItemGenerator : EditorWindow
         return (path + "/" + fileName + ".asset");
     }
 
-    private int CollumnToInt(Collumn collumn)
+    private string GenerateFileName(string displayName, string sort)
     {
-        return (int)collumn;
+        return sort + ". " + displayName;
     }
 
     private void DisplayItemError(int row, Collumn collumn)
     {
-        Debug.LogError("Something went wrong, check Row " + (row) + ", Collumn " + collumn + ".");
+        Debug.LogWarning(row + ". Invalid Element\nSpreadsheet Position: " + (row) + ", Collumn " + collumn + "\nStatus: Skipped");
+    }
+
+    private void DisplayItemSuccess(int row, ItemData data)
+    {
+        Debug.Log(string.Format("{0}. Item Generated\nItem Details\n\nDisplay Name: {1}\nRound Number: {2}\nItem Scale: {3}\nRound Time: {4}\nTap Goal: {5}\n" +
+            "Status: Success", row, data.displayName, data.roundNumber, data.itemScale, data.roundTime, data.tapGoal));
     }
 }

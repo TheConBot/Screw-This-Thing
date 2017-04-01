@@ -9,9 +9,4 @@ public class ItemData : ScriptableObject
     public string displayName;
     public int tapGoal;
     public GameObject itemPrefab;
-
-    private void Awake()
-    {
-        name = displayName;
-    }
 }
