@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class InputManager : MonoBehaviour {
+public class InputManager : MonoBehaviour
+{
 
     private struct ScreenBounds
     {
@@ -26,14 +27,27 @@ public class InputManager : MonoBehaviour {
     private void Update()
     {
         //Non-Touch Input for in Editor
-        if (Application.isEditor && Input.GetMouseButtonDown(0) && ValidTap(Input.mousePosition))
+        if (Application.isEditor)
         {
-            taps++;
-            Debug.Log(taps);
+            if (Input.GetMouseButtonDown(0) && ValidTap(Input.mousePosition))
+            {
+                OnTap();
+            }
         }
-        else if(Input.GetTouch(0).phase == TouchPhase.Began && ValidTap(Input.GetTouch(0).position)){
-            taps++;
+        else
+        {
+            if (Input.GetTouch(0).phase == TouchPhase.Began && ValidTap(Input.GetTouch(0).position))
+            {
+                OnTap();
+            }
         }
+
+    }
+
+    private void OnTap()
+    {
+        taps++;
+        GameManager.instance.ScreenTapped();
     }
 
     private void CalculateScreenBounds()
@@ -60,7 +74,7 @@ public class InputManager : MonoBehaviour {
 
     private bool ValidTap(Vector3 pos)
     {
-        if((pos.x < screenBounds.xMax && pos.x > screenBounds.xMin) && (pos.y < screenBounds.yMax && pos.y > screenBounds.yMin))
+        if ((pos.x < screenBounds.xMax && pos.x > screenBounds.xMin) && (pos.y < screenBounds.yMax && pos.y > screenBounds.yMin))
         {
             return true;
         }

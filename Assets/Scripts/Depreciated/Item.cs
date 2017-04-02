@@ -13,7 +13,7 @@ public class Item : MonoBehaviour {
 
     public int tapCount { private get; set; }
     public SoundType soundType;
-    private int tapLimit = 50;
+    private int tapLimit;
     private Rigidbody body;
 
     private void Awake()

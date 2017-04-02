@@ -56,7 +56,7 @@ public class ItemGenerator : EditorWindow
             Debug.LogError("No spreadsheet entered, assign in the Item Generator inspector.");
             return;
         }
-        else if (Path.GetFullPath(savePath) == null)
+        else if (!AssetDatabase.IsValidFolder(savePath))
         {
             Debug.LogError("Invalid file path, assign in the Item Generator insepctor.");
             return;
