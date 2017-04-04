@@ -38,14 +38,9 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         public int tapsThisRound;
         public int tapGoal;
         public ItemData currentItem;
-
+        public GameObject currentGameItem;
     }
     public GameInformation status;
-
-    private void Start()
-    {
-        StartGame();
-    }
 
     private List<ItemData> SortListByRound(List<ItemData> list)
     {
@@ -53,19 +48,23 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         return list;
     }
 
-    private void StartGame()
+    private void Start()
+    {
+        InstantiateItems();
+    }
+
+    public void StartGame()
     {
         items = data.itemList;
         items = SortListByRound(items);
         status.maxRound = items.Count;
         status.currentIndex = 0;
-        InstantiateItems();
         SpawnNewItem();
     }
 
     private void EndRound()
     {
-        ToggleGameItem();
+        ToggleGameItem(status.currentGameItem);
         status.currentIndex++;
         SpawnNewItem();
     }
@@ -83,11 +82,12 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     private void SpawnNewItem()
     {
         status.currentItem = items[status.currentIndex];
+        status.currentGameItem = gameItems[status.currentIndex];
         status.currentRound = status.currentItem.roundNumber;
         status.roundTime = status.currentItem.roundTime;
         status.tapGoal = status.currentItem.tapGoal;
         status.tapsThisRound = 0;
-        ToggleGameItem();
+        ToggleGameItem(status.currentGameItem);
         gameItems[status.currentIndex].name = status.currentItem.displayName;
     }
 
@@ -111,8 +111,8 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         return false;
     }
 
-    private void ToggleGameItem()
+    private void ToggleGameItem(GameObject gameItem)
     {
-        gameItems[status.currentIndex].SetActive(!gameItems[status.currentIndex].activeSelf);
+        gameItem.SetActive(!gameItem.activeSelf);
     }
 }

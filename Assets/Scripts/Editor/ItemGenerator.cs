@@ -146,7 +146,7 @@ public class ItemGenerator : EditorWindow
 
     private void DisplayItemError(int row, Collumn collumn)
     {
-        Debug.LogWarning(row + ". Invalid Element\nSpreadsheet Position: " + (row) + ", Collumn " + collumn + "\nStatus: Skipped");
+        Debug.LogWarning(row + ". Invalid Element\nSpreadsheet Position: Row " + (row) + ", Collumn " + collumn + "\nStatus: Skipped");
     }
 
     private void DisplayItemSuccess(int row, ItemData data)
