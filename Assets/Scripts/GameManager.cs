@@ -4,7 +4,6 @@ using UnityEngine;
 [RequireComponent(typeof(InputManager))]
 public class GameManager : SingletonMonoBehaviour<GameManager>
 {
-	// Jeff Was here. "Hi Connor!"
 
     [SerializeField]
     private GameData data;
