@@ -1,0 +1,21 @@
+fileFormatVersion: 2
+guid: 27688c05dfdf00a43a47d5ec70018c99
+timeCreated: 1491936132
+licenseType: Free
+TrueTypeFontImporter:
+  serializedVersion: 4
+  fontSize: 16
+  forceTextureCase: -2
+  characterSpacing: 0
+  characterPadding: 1
+  includeFontData: 1
+  fontName: Oswald Stencil
+  fontNames:
+  - Oswald Stencil
+  fallbackFontReferences: []
+  customCharacters: 
+  fontRenderingMode: 0
+  ascentCalculationMode: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
