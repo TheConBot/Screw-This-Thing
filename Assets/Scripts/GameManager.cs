@@ -39,6 +39,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         public int tapGoal;
         public ItemData currentItem;
         public GameObject currentGameItem;
+        public bool isPlaying;
     }
     public GameInformation status;
 
@@ -55,10 +56,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     public void StartGame()
     {
-        items = data.itemList;
-        items = SortListByRound(items);
-        status.maxRound = items.Count;
-        status.currentIndex = 0;
+        status.isPlaying = true;
         SpawnNewItem();
     }
 
@@ -71,6 +69,10 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     private void InstantiateItems()
     {
+        items = data.itemList;
+        items = SortListByRound(items);
+        status.maxRound = items.Count;
+        status.currentIndex = 0;
         foreach (var item in items)
         {
             GameObject gameItem = Instantiate(item.itemPrefab);
@@ -93,12 +95,19 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     public void ScreenTapped()
     {
-        status.tapsThisRound++;
-        Debug.Log("Tap Status: " + status.tapsThisRound + "/" + status.tapGoal);
-        //Camera shake and other effects here
-        if(TapGoalReached())
+        if (status.isPlaying)
         {
-            EndRound();
+            status.tapsThisRound++;
+            Debug.Log("Tap Status: " + status.tapsThisRound + "/" + status.tapGoal);
+            //Camera shake and other effects here
+            if (TapGoalReached())
+            {
+                EndRound();
+            }
+        }
+        else
+        {
+            StartGame();
         }
     }
 
