@@ -10,84 +10,41 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     //Private Vars
     [SerializeField]
     private GameData data;
-    private List<ItemData> items = new List<ItemData>();
+    private GameObject currentGameItem;
+    private IEnumerator timerEnumerator;
+    private ItemData currentItem;
     private List<GameObject> gameItems = new List<GameObject>();
-    private IEnumerator timerCoroutine;
+    private List<ItemData> items = new List<ItemData>();
+    private bool isPlaying;
+    private bool isTransitioning;
+    private const int minRound = 1;
+    private float roundTime;
+    private int currentIndex;
+    private int currentRound;
+    private int maxRound;
+    private int tapsThisRound;
+    private int tapGoal;
     //Public Static Vars
     public static bool DebugEnabled;
-    //Public Vars
-    public struct GameInformation
-    {
-        public float RoundTime;
-        public int MaxRound;
-        public int MinRound
-        {
-            get
-            {
-                return 1;
-            }
-        }
-        private int currentRound;
-        public int CurrentRound
-        {
-            get
-            {
-                return currentRound;
-            }
-            set
-            {
-                currentRound = Mathf.Clamp(value, MinRound, MaxRound);
-            }
-        }
-        public int CurrentIndex;
-        public int TapsThisRound;
-        public int TapGoal;
-        public ItemData CurrentItem;
-        public GameObject CurrentGameItem;
-        public bool isPlaying;
-        public bool isTransitioning;
-    }
-    public GameInformation status;
-    //Public UI Vars
-    public Text titleText;
+    //Public Inspector Vars
+    [Header("UI References")]
+    public CanvasGroup gamePanel;
+    public CanvasGroup titlePanel;
     public Text roundText;
+    public Text titleText;
     public Text timeText;
     public Text tapText;
-    public CanvasGroup titlePanel;
-    public CanvasGroup gamePanel;
+    [Header("GameItem Shake Options")]
+    public float shakeDuration = .15f;
+    public float shakeMinMagnitude = .1f;
+    public float shakeMaxMagnitude = 1;
 
     private void Start()
     {
-        StartGame();
+        Init();
     }
 
-    private IEnumerator StartRound()
-    {
-        StartCoroutine(TransitionGameView(titlePanel, gamePanel));
-        while (status.isTransitioning)
-        {
-            yield return null;
-        }
-        status.isPlaying = true;
-        timerCoroutine = Timer();
-        StartCoroutine(timerCoroutine);
-    }
-
-    private IEnumerator EndRound()
-    {
-        StopCoroutine(timerCoroutine);
-        StartCoroutine(TransitionGameView(gamePanel, titlePanel));
-        while (status.isTransitioning)
-        {
-            yield return null;
-        }
-        status.isPlaying = false;
-        ToggleGameItem(status.CurrentGameItem);
-        status.CurrentIndex++;
-        SpawnNewItem();
-    }
-
-    private void StartGame()
+    private void Init()
     {
         InstantiateItems();
         titlePanel.alpha = 1;
@@ -101,15 +58,51 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
+    private IEnumerator StartRound()
+    {
+        StartCoroutine(TransitionGameView(titlePanel, gamePanel));
+        while (isTransitioning)
+        {
+            yield return null;
+        }
+        Handheld.Vibrate();
+        isPlaying = true;
+        timerEnumerator = Timer();
+        StartCoroutine(timerEnumerator);
+    }
+
+    private IEnumerator EndRound()
+    {
+        Handheld.Vibrate();
+        StopCoroutine(timerEnumerator);
+        StartCoroutine(TransitionGameView(gamePanel, titlePanel));
+        while (isTransitioning)
+        {
+            yield return null;
+        }
+        isPlaying = false;
+        ToggleGameItem(currentGameItem);
+        currentIndex++;
+        SpawnNewItem();
+    }
+
     private void InstantiateItems()
     {
         items = data.itemList;
         items = SortListByRound(items);
-        status.MaxRound = items.Count;
-        status.CurrentIndex = 0;
+        maxRound = items.Count;
+        currentIndex = 0;
         foreach (var item in items)
         {
-            GameObject gameItem = Instantiate(item.itemPrefab);
+            GameObject gameItem;
+            if (item.itemPrefab.GetComponent<CameraFeed>() != null)
+            {
+                gameItem = Instantiate(item.itemPrefab, FindObjectOfType<Canvas>().transform);
+            }
+            else
+            {
+                gameItem = Instantiate(item.itemPrefab);
+            }
             gameItems.Add(gameItem);
             gameItem.SetActive(false);
         }
@@ -117,30 +110,30 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     private void SpawnNewItem()
     {
-        status.CurrentItem = items[status.CurrentIndex];
-        status.CurrentGameItem = gameItems[status.CurrentIndex];
-        status.CurrentRound = status.CurrentItem.roundNumber;
-        status.RoundTime = status.CurrentItem.roundTime;
-        status.TapGoal = status.CurrentItem.tapGoal;
-        status.TapsThisRound = 0;
-        ToggleGameItem(status.CurrentGameItem);
+        currentItem = items[currentIndex];
+        currentGameItem = gameItems[currentIndex];
+        currentRound = currentItem.roundNumber;
+        roundTime = currentItem.roundTime;
+        tapGoal = currentItem.tapGoal;
+        tapsThisRound = 0;
+        ToggleGameItem(currentGameItem);
 
-        titleText.text = ("Screw This " + status.CurrentItem.displayName + "!").ToUpper();
-        roundText.text = "Round " + status.CurrentRound;
-        timeText.text = status.RoundTime.ToString("F2");
-        tapText.text = status.TapsThisRound + "/" + status.TapGoal;
+        titleText.text = ("Screw This " + currentItem.displayName + "!").ToUpper();
+        roundText.text = "Round " + currentRound;
+        timeText.text = roundTime.ToString("F2");
+        tapText.text = tapsThisRound + "/" + tapGoal;
     }
 
     private IEnumerator Timer()
     {
-        while (status.RoundTime > 0)
+        while (roundTime > 0)
         {
-            status.RoundTime -= Time.deltaTime;
-            timeText.text = status.RoundTime.ToString("F2");
+            roundTime = Mathf.Clamp(roundTime - Time.deltaTime, 0, Mathf.Infinity);
+            timeText.text = roundTime.ToString("F2");
             yield return new WaitForEndOfFrame();
         }
 
-        if (!status.isTransitioning && status.isPlaying)
+        if (!isTransitioning && isPlaying)
         {
             EndGame();
         }
@@ -149,16 +142,17 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     public void ScreenTapped()
     {
-        if (status.isTransitioning)
+        if (isTransitioning)
         {
             return;
         }
-        Handheld.Vibrate();
-        if (status.isPlaying)
+        if (isPlaying)
         {
-            status.TapsThisRound++;
-            tapText.text = status.TapsThisRound + "/" + status.TapGoal;
-            //TODO: Camera shake and other effects here
+            tapsThisRound++;
+            tapText.text = tapsThisRound + "/" + tapGoal;
+            Debug.Log(ScaledShakeMagnitude());
+            //StartCoroutine(ShakeGameObject(currentGameItem, shakeDuration, ScaledShakeMagnitude()));
+            StartCoroutine(ShakeGameObject(Camera.main.gameObject, shakeDuration, ScaledShakeMagnitude()));
             if (TapGoalReached())
             {
                 StartCoroutine(EndRound());
@@ -170,9 +164,45 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         }
     }
 
+    private float ScaledShakeMagnitude()
+    {
+        float scaledMagnitude = (float)tapsThisRound / tapGoal;
+        scaledMagnitude = Mathf.Clamp(scaledMagnitude, shakeMinMagnitude, shakeMaxMagnitude);
+        return scaledMagnitude;
+    }
+
+    private IEnumerator ShakeGameObject(GameObject gameObject, float duration, float magnitude)
+    {
+        float elapsed = 0.0f;
+
+        Vector3 originalObjectPos = gameObject.transform.position;
+
+        while (elapsed < duration)
+        {
+
+            elapsed += Time.deltaTime;
+
+            float percentComplete = elapsed / duration;
+            float damper = 1.0f - Mathf.Clamp(4.0f * percentComplete - 3.0f, 0.0f, 1.0f);
+            // map value to [-1, 1]
+            float x = Random.value * 2.0f - 1.0f;
+            float y = Random.value * 2.0f - 1.0f;
+            x *= magnitude * damper;
+            y *= magnitude * damper;
+
+            gameObject.transform.position = new Vector3(x, y, originalObjectPos.z);
+
+            yield return null;
+        }
+
+        gameObject.transform.position = new Vector3(0, 0, originalObjectPos.z);
+
+        yield return null;
+    }
+
     private bool TapGoalReached()
     {
-        if (status.TapsThisRound >= status.TapGoal)
+        if (tapsThisRound >= tapGoal)
         {
             return true;
         }
@@ -186,14 +216,14 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     private IEnumerator TransitionGameView(CanvasGroup fadeOut, CanvasGroup fadeIn)
     {
-        status.isTransitioning = true;
+        isTransitioning = true;
         while (fadeIn.alpha != 1 && fadeOut.alpha != 0)
         {
             fadeIn.alpha += Time.deltaTime;
             fadeOut.alpha -= Time.deltaTime;
             yield return new WaitForEndOfFrame();
         }
-        status.isTransitioning = false;
+        isTransitioning = false;
     }
 
     private List<ItemData> SortListByRound(List<ItemData> list)
