@@ -1,7 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.SceneManagement;
 using TMPro;
 
@@ -9,8 +8,6 @@ using TMPro;
 public class GameManager : SingletonMonoBehaviour<GameManager>
 {
     //Private Vars
-    [SerializeField]
-    private GameData data;
     private GameObject currentGameItem;
     private IEnumerator timerEnumerator;
     private ItemData currentItem;
@@ -25,9 +22,10 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     private int maxRound;
     private int tapsThisRound;
     private int tapGoal;
-    //Public Static Vars
-    public static bool DebugEnabled;
-    //Public Inspector Vars
+    //Inspector Vars
+    [SerializeField]
+    private GameData gameData;
+    public bool debugEnabled;
     [Header("UI References")]
     public CanvasGroup gamePanel;
     public CanvasGroup titlePanel;
@@ -35,10 +33,12 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     public TextMeshProUGUI titleText;
     public TextMeshProUGUI timeText;
     public TextMeshProUGUI tapText;
-    [Header("GameItem Shake Options")]
+    [Header("Shake Options")]
     public float shakeDuration = .15f;
     public float shakeMinMagnitude = .1f;
     public float shakeMaxMagnitude = 1;
+
+    private int timersRunning = 0;
 
     private void Start()
     {
@@ -50,6 +50,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         InstantiateItems();
         titlePanel.alpha = 1;
         gamePanel.alpha = 0;
+        timerEnumerator = Timer();
         SpawnNewItem();
     }
 
@@ -68,13 +69,14 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         }
         Handheld.Vibrate();
         isPlaying = true;
-        timerEnumerator = Timer();
+        timersRunning++;
         StartCoroutine(timerEnumerator);
     }
 
     private IEnumerator EndRound()
     {
         Handheld.Vibrate();
+        timersRunning--;
         StopCoroutine(timerEnumerator);
         StartCoroutine(TransitionGameView(gamePanel, titlePanel));
         while (isTransitioning)
@@ -89,7 +91,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     private void InstantiateItems()
     {
-        items = data.itemList;
+        items = gameData.itemList;
         items = SortListByRound(items);
         maxRound = items.Count;
         currentIndex = 0;
@@ -127,6 +129,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     private IEnumerator Timer()
     {
+        Debug.Log(timersRunning);
         while (roundTime > 0)
         {
             roundTime = Mathf.Clamp(roundTime - Time.deltaTime, 0, Mathf.Infinity);
@@ -138,7 +141,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         {
             EndGame();
         }
-
+        timersRunning--;
     }
 
     public void ScreenTapped()
