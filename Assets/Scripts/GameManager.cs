@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using TMPro;
 
 [RequireComponent(typeof(InputManager))]
 public class GameManager : SingletonMonoBehaviour<GameManager>
@@ -30,10 +31,10 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     [Header("UI References")]
     public CanvasGroup gamePanel;
     public CanvasGroup titlePanel;
-    public Text roundText;
-    public Text titleText;
-    public Text timeText;
-    public Text tapText;
+    public TextMeshProUGUI roundText;
+    public TextMeshProUGUI titleText;
+    public TextMeshProUGUI timeText;
+    public TextMeshProUGUI tapText;
     [Header("GameItem Shake Options")]
     public float shakeDuration = .15f;
     public float shakeMinMagnitude = .1f;

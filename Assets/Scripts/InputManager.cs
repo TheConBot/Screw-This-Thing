@@ -4,7 +4,6 @@ using UnityEngine;
 
 public class InputManager : MonoBehaviour
 {
-
     private struct ScreenBounds
     {
         public float xMax;
@@ -12,11 +11,13 @@ public class InputManager : MonoBehaviour
         public float yMax;
         public float yMin;
     }
-
-    [Range(0f, 0.9f), Tooltip("Percentage of screen that is ignored when screen is tapped.")]
-    public float tapRangeX, tapRangeY;
-
     private ScreenBounds screenBounds;
+
+    [Range(0f, 0.9f), Tooltip("Percentage of screen that is ignored when screen is tapped."), Header("Tap Settings")]
+    public float tapRangeX, tapRangeY;
+    [Range(1f, 60f), Tooltip("The maximum allowed taps per second.")]
+    public float targetTapsPerSecond = 7;
+    [HideInInspector]
     public int taps { get; private set; }
 
     private void Awake()
@@ -26,6 +27,7 @@ public class InputManager : MonoBehaviour
 
     private void Update()
     {
+        if()
         //Non-Touch Input for in Editor
         if (Application.isEditor)
         {
@@ -80,6 +82,11 @@ public class InputManager : MonoBehaviour
         }
         Debug.LogWarning("Tap was not in range");
         return false;
+    }
+
+    private IEnumerator TapCooldown()
+    {
+
     }
 
 }
