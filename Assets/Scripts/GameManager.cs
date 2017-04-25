@@ -33,6 +33,8 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     public TextMeshProUGUI titleText;
     public TextMeshProUGUI timeText;
     public TextMeshProUGUI tapText;
+    public float canvasTransitionMultiplier;
+    public float SecondsBeforeRound = 1;
     [Header("Shake Options")]
     public float shakeDuration = .15f;
     public float shakeMinMagnitude = .1f;
@@ -68,10 +70,23 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
             yield return null;
         }
         Handheld.Vibrate();
+        //Triggering Ethan's awkward coroutine, which currently does nothing
+        //StartCoroutine(RoundStartCountdown());
         isPlaying = true;
         timersRunning++;
         StartCoroutine(timerEnumerator);
     }
+    
+    /*Ethan's attempt to create a 3-2-1 countdown before a round starts, so that it isn't as awkward
+    private IEnumerator RoundStartCountdown(){
+        Debug.Log("FUCK");
+        SecondsBeforeRound -= Time.deltaTime;
+        titleText.text = SecondsBeforeRound.ToString("0");
+        if (SecondsBeforeRound <= 0){
+            yield break;
+        }
+    }
+    */
 
     private IEnumerator EndRound()
     {
@@ -110,7 +125,6 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
             gameItem.SetActive(false);
         }
     }
-
     private void SpawnNewItem()
     {
         currentItem = items[currentIndex];
@@ -223,13 +237,14 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         isTransitioning = true;
         while (fadeIn.alpha != 1 && fadeOut.alpha != 0)
         {
-            fadeIn.alpha += Time.deltaTime;
-            fadeOut.alpha -= Time.deltaTime;
+            // Transition Multiplier makes the text not show the old item's descriptor, punch cut text
+            fadeIn.alpha += Time.deltaTime * canvasTransitionMultiplier;
+            fadeOut.alpha -= Time.deltaTime * canvasTransitionMultiplier;
             yield return new WaitForEndOfFrame();
         }
         isTransitioning = false;
     }
-
+    
     private List<ItemData> SortListByRound(List<ItemData> list)
     {
         list.Sort(delegate (ItemData a, ItemData b) { return a.roundNumber.CompareTo(b.roundNumber); });
