@@ -19,7 +19,7 @@ public class InputManager : MonoBehaviour
     [Range(0f, 0.9f), Tooltip("Percentage of screen that is ignored when screen is tapped.")]
     public float tapRangeY;
     [Range(1f, 60f), Tooltip("The maximum allowed taps per second.")]
-    public int targetTapsPerSecond = 7;
+    public int maxTapsPerSecond = 7;
     [HideInInspector]
     public int taps { get; private set; }
 
@@ -94,7 +94,7 @@ public class InputManager : MonoBehaviour
     private IEnumerator TapCooldown()
     {
         onCooldown = true;
-        yield return new WaitForSeconds(1 / targetTapsPerSecond);
+        yield return new WaitForSeconds(1 / maxTapsPerSecond);
         onCooldown = false;
     }
 }

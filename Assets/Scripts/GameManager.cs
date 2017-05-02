@@ -15,6 +15,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     private List<ItemData> items = new List<ItemData>();
     private bool isPlaying;
     private bool isTransitioning;
+    private bool isCountdown;
     private const int minRound = 1;
     private float roundTime;
     private int currentIndex;
@@ -33,14 +34,15 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     public TextMeshProUGUI titleText;
     public TextMeshProUGUI timeText;
     public TextMeshProUGUI tapText;
-    public float canvasTransitionMultiplier;
-    public float SecondsBeforeRound = 1;
+    public TextMeshProUGUI countdownText;
+    [Header("UI Options")]
+    public float fadeTransitionMultiplier;
+    public int secondsBeforeRound = 1;
+    public float countdownTimeScale = 1.5f;
     [Header("Shake Options")]
     public float shakeDuration = .15f;
     public float shakeMinMagnitude = .1f;
     public float shakeMaxMagnitude = 1;
-
-    private int timersRunning = 0;
 
     private void Start()
     {
@@ -49,11 +51,14 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     private void Init()
     {
+        Time.timeScale = 1;
         InstantiateItems();
         titlePanel.alpha = 1;
         gamePanel.alpha = 0;
+        countdownText.enabled = false;
         timerEnumerator = Timer();
         SpawnNewItem();
+        ToggleGameItem(currentGameItem);
     }
 
     private void EndGame()
@@ -69,30 +74,43 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         {
             yield return null;
         }
+        isCountdown = true;
+        Time.timeScale = countdownTimeScale;
+        countdownText.enabled = true;
+        float workingSeconds = secondsBeforeRound;
+        int fontCounting = secondsBeforeRound;
+        float origonalFontSize = countdownText.fontSize;
+        while(workingSeconds > 0)
+        {
+            if(workingSeconds < fontCounting - 1)
+            {
+                countdownText.fontSize = origonalFontSize;
+                fontCounting--;
+            }
+            workingSeconds -= Time.deltaTime;
+            countdownText.text = ((int)workingSeconds + 1).ToString();
+            countdownText.fontSize--;
+            yield return new WaitForEndOfFrame();
+        }
+        countdownText.enabled = false;
+        countdownText.fontSize = origonalFontSize;
+        Time.timeScale = 1;
+        isCountdown = false;
         Handheld.Vibrate();
-        //Triggering Ethan's awkward coroutine, which currently does nothing
-        //StartCoroutine(RoundStartCountdown());
         isPlaying = true;
-        timersRunning++;
         StartCoroutine(timerEnumerator);
     }
-    
-    /*Ethan's attempt to create a 3-2-1 countdown before a round starts, so that it isn't as awkward
-    private IEnumerator RoundStartCountdown(){
-        Debug.Log("FUCK");
-        SecondsBeforeRound -= Time.deltaTime;
-        titleText.text = SecondsBeforeRound.ToString("0");
-        if (SecondsBeforeRound <= 0){
-            yield break;
-        }
-    }
-    */
 
     private IEnumerator EndRound()
     {
-        Handheld.Vibrate();
-        timersRunning--;
+        if(currentRound == maxRound)
+        {
+            EndGame();
+        }
         StopCoroutine(timerEnumerator);
+        ToggleGameItem(currentGameItem);
+        currentIndex++;
+        SpawnNewItem();
         StartCoroutine(TransitionGameView(gamePanel, titlePanel));
         while (isTransitioning)
         {
@@ -100,8 +118,6 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         }
         isPlaying = false;
         ToggleGameItem(currentGameItem);
-        currentIndex++;
-        SpawnNewItem();
     }
 
     private void InstantiateItems()
@@ -133,17 +149,14 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         roundTime = currentItem.roundTime;
         tapGoal = currentItem.tapGoal;
         tapsThisRound = 0;
-        ToggleGameItem(currentGameItem);
-
         titleText.text = ("Screw This " + currentItem.displayName + "!").ToUpper();
         roundText.text = "Round " + currentRound;
         timeText.text = roundTime.ToString("F2");
-        tapText.text = tapsThisRound + "/" + tapGoal;
+        UpdateTapText();
     }
 
     private IEnumerator Timer()
     {
-        Debug.Log(timersRunning);
         while (roundTime > 0)
         {
             roundTime = Mathf.Clamp(roundTime - Time.deltaTime, 0, Mathf.Infinity);
@@ -155,21 +168,18 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         {
             EndGame();
         }
-        timersRunning--;
     }
 
     public void ScreenTapped()
     {
-        if (isTransitioning)
+        if (isTransitioning || isCountdown)
         {
             return;
         }
-        if (isPlaying)
+        else if (isPlaying)
         {
             tapsThisRound++;
-            tapText.text = tapsThisRound + "/" + tapGoal;
-            Debug.Log(ScaledShakeMagnitude());
-            //StartCoroutine(ShakeGameObject(currentGameItem, shakeDuration, ScaledShakeMagnitude()));
+            UpdateTapText();
             StartCoroutine(ShakeGameObject(Camera.main.gameObject, shakeDuration, ScaledShakeMagnitude()));
             if (TapGoalReached())
             {
@@ -179,6 +189,18 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         else
         {
             StartCoroutine(StartRound());
+        }
+    }
+
+    private void UpdateTapText()
+    {
+        if(tapGoal != 42)
+        {
+            tapText.text = tapsThisRound + "/" + tapGoal;
+
+        }
+        else {
+            tapText.text = tapsThisRound + "/" + 42.0f.ToString("F1");
         }
     }
 
@@ -192,29 +214,24 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     private IEnumerator ShakeGameObject(GameObject gameObject, float duration, float magnitude)
     {
         float elapsed = 0.0f;
-
         Vector3 originalObjectPos = gameObject.transform.position;
 
         while (elapsed < duration)
         {
-
             elapsed += Time.deltaTime;
 
             float percentComplete = elapsed / duration;
             float damper = 1.0f - Mathf.Clamp(4.0f * percentComplete - 3.0f, 0.0f, 1.0f);
-            // map value to [-1, 1]
             float x = Random.value * 2.0f - 1.0f;
             float y = Random.value * 2.0f - 1.0f;
             x *= magnitude * damper;
             y *= magnitude * damper;
 
             gameObject.transform.position = new Vector3(x, y, originalObjectPos.z);
-
             yield return null;
         }
 
         gameObject.transform.position = new Vector3(0, 0, originalObjectPos.z);
-
         yield return null;
     }
 
@@ -238,8 +255,8 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         while (fadeIn.alpha != 1 && fadeOut.alpha != 0)
         {
             // Transition Multiplier makes the text not show the old item's descriptor, punch cut text
-            fadeIn.alpha += Time.deltaTime * canvasTransitionMultiplier;
-            fadeOut.alpha -= Time.deltaTime * canvasTransitionMultiplier;
+            fadeIn.alpha += Time.deltaTime * fadeTransitionMultiplier;
+            fadeOut.alpha -= Time.deltaTime * fadeTransitionMultiplier;
             yield return new WaitForEndOfFrame();
         }
         isTransitioning = false;

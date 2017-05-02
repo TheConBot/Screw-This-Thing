@@ -28,7 +28,7 @@ public class ItemGenerator : EditorWindow
     }
     private SortBy sortBy;
     private TextAsset spreadsheet;
-    private string savePath;
+    private string savePath = "Assets/Data/Items";
 
     [MenuItem("Tools/Item Generator")]
     public static void ShowWindow()
