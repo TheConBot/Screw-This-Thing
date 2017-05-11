@@ -9,4 +9,7 @@ public class ItemData : ScriptableObject
     public string displayName;
     public int tapGoal;
     public GameObject itemPrefab;
+    public AudioClip[] introVOSounds;
+    public AudioClip[] tapSounds;
+    public AudioClip[] endSounds;
 }

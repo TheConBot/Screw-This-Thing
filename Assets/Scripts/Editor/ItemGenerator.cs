@@ -1,11 +1,11 @@
-﻿using System.IO;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEditor;
 
 public class ItemGenerator : EditorWindow
 {
-
+    //Private Vars
+    private SortBy sortBy;
+    private TextAsset spreadsheet;
     private enum Collumn
     {
         A,
@@ -26,16 +26,16 @@ public class ItemGenerator : EditorWindow
         Time = Collumn.C,
         Taps = Collumn.F
     }
-    private SortBy sortBy;
-    private TextAsset spreadsheet;
     private string savePath = "Assets/Data/Items";
 
+    //Inspector Vars
     [MenuItem("Tools/Item Generator")]
     public static void ShowWindow()
     {
         GetWindow<ItemGenerator>(false, "Item Generator", true);
     }
 
+    //Editor Functions
     private void OnGUI()
     {
         GUILayout.Label("Options", EditorStyles.boldLabel);
@@ -49,6 +49,7 @@ public class ItemGenerator : EditorWindow
         }
     }
 
+    //Core Functions
     private void GenerateItems()
     {
         if (spreadsheet == null)
@@ -121,12 +122,6 @@ public class ItemGenerator : EditorWindow
         Debug.Log("***ITEM GENERATION COMPLETE***");
     }
 
-    private void SaveAsset(Object asset, string path, string fileName, bool createNewAsset)
-    {
-        //string assetPathAndName = AssetDatabase.GenerateUniqueAssetPath(path + "/" + fileName + ".asset");
-        if (createNewAsset) AssetDatabase.CreateAsset(asset, GenerateFullPath(path, fileName));
-    }
-
     private void RefreshEditor()
     {
         AssetDatabase.SaveAssets();
@@ -134,14 +129,20 @@ public class ItemGenerator : EditorWindow
         EditorUtility.FocusProjectWindow();
     }
 
-    private string GenerateFullPath(string path, string fileName)
+    private void SaveAsset(Object asset, string path, string fileName, bool createNewAsset)
     {
-        return (path + "/" + fileName + ".asset");
+        if (createNewAsset) AssetDatabase.CreateAsset(asset, GenerateFullPath(path, fileName));
     }
 
+    //Utility Functions
     private string GenerateFileName(string displayName, string sort)
     {
         return sort + ". " + displayName;
+    }
+
+    private string GenerateFullPath(string path, string fileName)
+    {
+        return (path + "/" + fileName + ".asset");
     }
 
     private void DisplayItemError(int row, Collumn collumn)

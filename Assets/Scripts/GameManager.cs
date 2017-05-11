@@ -1,91 +1,165 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
-using TMPro;
 
 [RequireComponent(typeof(InputManager))]
 public class GameManager : SingletonMonoBehaviour<GameManager>
 {
     //Private Vars
+    private AudioClip[] currentEndSounds;
+    private AudioClip[] currentIntroSounds;
+    private AudioClip[] currentTapSounds;
     private GameObject currentGameItem;
+    private GameState gameState;
     private IEnumerator timerEnumerator;
     private ItemData currentItem;
     private List<GameObject> gameItems = new List<GameObject>();
     private List<ItemData> items = new List<ItemData>();
-    private bool isPlaying;
     private bool isTransitioning;
-    private bool isCountdown;
-    private bool isEnding;
     private const int minRound = 1;
+    private enum GameState
+    {
+        Idle,
+        Starting,
+        Playing,
+        Ending
+    }
     private float roundTime;
     private int currentIndex;
     private int currentRound;
+    private int currentTapGoal;
+    private int currentTaps;
     private int maxRound;
-    private int tapsThisRound;
-    private int tapGoal;
+
     //Inspector Vars
-    [SerializeField]
-    private GameData gameData;
+    [Header("Game References")]
+    public GameData gameData;
+    [Header("Debug Options")]
     public bool debugEnabled;
+    public int startingIndex;
     [Header("UI References")]
     public CanvasGroup gamePanel;
     public CanvasGroup titlePanel;
-    public TextMeshProUGUI roundText;
-    public TextMeshProUGUI titleText;
     public Image timeRadial;
     public Slider tapSlider;
     public TextMeshProUGUI countdownText;
+    public TextMeshProUGUI roundText;
+    public TextMeshProUGUI titleText;
     [Header("UI Options")]
+    public float countdownTimeScale = 1.5f;
     public float fadeTransitionMultiplier;
     public int secondsBeforeRound = 1;
-    public float countdownTimeScale = 1.5f;
+    [Header("Sound References")]
+    public AudioSource endSource;
+    public AudioSource introSource;
+    public AudioSource tapSource;
     [Header("Effect Options")]
-    public float shakeDuration = .15f;
-    public float shakeMinMagnitude = .1f;
-    public float shakeMaxMagnitude = 1;
     public float explosionForce = 500;
+    public float explosionDuration = 3;
+    public float shakeDuration = .15f;
+    public float shakeMaxMagnitude = 1;
+    public float shakeMinMagnitude = .1f;
 
+    //MonoBehaviour Functions
     private void Start()
     {
-        Init();
+        InitializeGame();
     }
 
-    private void Init()
+    //Core Functions
+    private void InitializeGame()
     {
         Time.timeScale = 1;
-        InstantiateItems();
-        titlePanel.alpha = 1;
-        gamePanel.alpha = 0;
-        countdownText.text = "";
+        InitializeItems();
+        InitializeUI();
         timerEnumerator = Timer();
-        SpawnNewItem();
-        ToggleGameItem(currentGameItem);
+        SpawnItem(currentIndex);
+        ToggleGameObject(currentGameItem);
     }
 
-    private void EndGame()
+    private void InitializeItems()
+    {
+        items = gameData.itemList;
+        items = SortListByRound(items);
+        maxRound = items.Count;
+        currentIndex = debugEnabled ? startingIndex : 0;
+        foreach (var item in items)
+        {
+            GameObject gameItem;
+            if (item.itemPrefab.GetComponent<CameraFeed>() != null)
+            {
+                gameItem = Instantiate(item.itemPrefab, FindObjectOfType<Canvas>().transform);
+            }
+            else
+            {
+                gameItem = Instantiate(item.itemPrefab);
+            }
+            gameItem.name = item.displayName;
+            gameItems.Add(gameItem);
+            ToggleGameObject(gameItem);
+        }
+    }
+
+    private void SpawnItem(int index)
+    {
+        currentItem = items[index];
+        currentGameItem = gameItems[index];
+        currentRound = currentItem.roundNumber;
+        roundTime = currentItem.roundTime;
+        currentTapGoal = currentItem.tapGoal;
+        currentIntroSounds = currentItem.introVOSounds;
+        currentTapSounds = currentItem.tapSounds;
+        currentEndSounds = currentItem.endSounds;
+        currentTaps = 0;
+        titleText.text = ("Screw This " + currentItem.displayName + "!").ToUpper();
+        roundText.text = "Round " + currentRound;
+    }
+
+    private void TerminateGame()
     {
         Debug.Log("You fucked up!");
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
+    public void ScreenTapped()
+    {
+        if (gameState == GameState.Playing)
+        {
+            currentTaps++;
+            PlaySoundEffect(tapSource, currentTapSounds);
+            UpdateTapSlider();
+            StartCoroutine(ShakeGameObject(Camera.main.gameObject, shakeDuration, ScaledShakeMagnitude()));
+            if (TapGoalReached())
+            {
+                StartCoroutine(TerminateRound());
+            }
+        }
+        else if(gameState == GameState.Idle)
+        {
+            StartCoroutine(StartRound());
+        }
+    }
+
+    //Core Coroutines
     private IEnumerator StartRound()
     {
+        gameState = GameState.Starting;
         ResetGameUI();
         StartCoroutine(TransitionGameView(titlePanel, gamePanel));
         while (isTransitioning)
         {
             yield return null;
         }
-        isCountdown = true;
         Time.timeScale = countdownTimeScale;
         float workingSeconds = secondsBeforeRound;
         int fontCounting = secondsBeforeRound;
         float origonalFontSize = countdownText.fontSize;
-        while(workingSeconds > 0)
+        while (workingSeconds > 0)
         {
-            if(workingSeconds < fontCounting - 1)
+            if (workingSeconds < fontCounting - 1)
             {
                 countdownText.fontSize = origonalFontSize;
                 fontCounting--;
@@ -98,118 +172,68 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         countdownText.text = "";
         countdownText.fontSize = origonalFontSize;
         Time.timeScale = 1;
-        isCountdown = false;
         Handheld.Vibrate();
-        isPlaying = true;
         StartCoroutine(timerEnumerator);
+        gameState = GameState.Playing;
     }
 
-    private IEnumerator EndRound()
+    private IEnumerator TerminateRound()
     {
-        isEnding = true;
-        if(currentRound == maxRound)
+        gameState = GameState.Ending;
+        if (currentRound == maxRound)
         {
-            EndGame();
+            TerminateGame();
         }
         StopCoroutine(timerEnumerator);
-        Rigidbody body = currentGameItem.GetComponent<Rigidbody>();
-        body.useGravity = true;
-        body.AddForce(Vector3.up * explosionForce);
-        body.AddTorque(Vector3.up * explosionForce);
-        float time = 4;
-        while(time > 0)
-        { 
+        BlowUpRigidbody(currentGameItem.GetComponent<Rigidbody>());
+        PlaySoundEffect(endSource, currentEndSounds);
+        float time = explosionDuration;
+        while (time > 0)
+        {
             time -= Time.deltaTime;
             currentGameItem.transform.localScale *= 0.995f;
             yield return new WaitForEndOfFrame();
         }
-        ToggleGameItem(currentGameItem);
+        ToggleGameObject(currentGameItem);
         currentIndex++;
-        SpawnNewItem();
+        SpawnItem(currentIndex);
         StartCoroutine(TransitionGameView(gamePanel, titlePanel));
         while (isTransitioning)
         {
             yield return null;
         }
-        isEnding = false;
-        isPlaying = false;
-        ToggleGameItem(currentGameItem);
-    }
-
-    private void InstantiateItems()
-    {
-        items = gameData.itemList;
-        items = SortListByRound(items);
-        maxRound = items.Count;
-        currentIndex = 0;
-        foreach (var item in items)
-        {
-            GameObject gameItem;
-            if (item.itemPrefab.GetComponent<CameraFeed>() != null)
-            {
-                gameItem = Instantiate(item.itemPrefab, FindObjectOfType<Canvas>().transform);
-            }
-            else
-            {
-                gameItem = Instantiate(item.itemPrefab);
-            }
-            gameItems.Add(gameItem);
-            gameItem.SetActive(false);
-        }
-    }
-    private void SpawnNewItem()
-    {
-        currentItem = items[currentIndex];
-        currentGameItem = gameItems[currentIndex];
-        currentRound = currentItem.roundNumber;
-        roundTime = currentItem.roundTime;
-        tapGoal = currentItem.tapGoal;
-        tapsThisRound = 0;
-        titleText.text = ("Screw This " + currentItem.displayName + "!").ToUpper();
-        roundText.text = "Round " + currentRound;
-    }
-
-    private void ResetGameUI()
-    {
-        tapSlider.value = 0;
-        tapSlider.maxValue = tapGoal;
-        timeRadial.fillAmount = 1;
+        ToggleGameObject(currentGameItem);
+        PlaySoundEffect(introSource, currentIntroSounds);
+        gameState = GameState.Idle;
     }
 
     private IEnumerator Timer()
     {
         while (timeRadial.fillAmount > 0)
         {
-            timeRadial.fillAmount = Mathf.Clamp(timeRadial.fillAmount - (Time.deltaTime * 1/roundTime), 0, 1);
+            timeRadial.fillAmount = Mathf.Clamp(timeRadial.fillAmount - (Time.deltaTime * 1 / roundTime), 0, 1);
             yield return new WaitForEndOfFrame();
         }
 
-        if (!isTransitioning && isPlaying)
+        if (gameState == GameState.Playing)
         {
-            EndGame();
+            TerminateGame();
         }
     }
 
-    public void ScreenTapped()
+    //UI Functions
+    private void InitializeUI()
     {
-        if (isTransitioning || isCountdown || isEnding)
-        {
-            return;
-        }
-        else if (isPlaying)
-        {
-            tapsThisRound++;
-            UpdateTapSlider();
-            StartCoroutine(ShakeGameObject(Camera.main.gameObject, shakeDuration, ScaledShakeMagnitude()));
-            if (TapGoalReached())
-            {
-                StartCoroutine(EndRound());
-            }
-        }
-        else
-        {
-            StartCoroutine(StartRound());
-        }
+        titlePanel.alpha = 1;
+        gamePanel.alpha = 0;
+        countdownText.text = "";
+    }
+    
+    private void ResetGameUI()
+    {
+        tapSlider.value = 0;
+        tapSlider.maxValue = currentTapGoal;
+        timeRadial.fillAmount = 1;
     }
 
     private void UpdateTapSlider()
@@ -217,13 +241,61 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         tapSlider.value++;
     }
 
+    //UI Coroutines
+    private IEnumerator TransitionGameView(CanvasGroup fadeOut, CanvasGroup fadeIn)
+    {
+        isTransitioning = true;
+        while (fadeIn.alpha != 1 && fadeOut.alpha != 0)
+        {
+            // Transition Multiplier makes the text not show the old item's descriptor, punch cut text
+            fadeIn.alpha += Time.deltaTime * fadeTransitionMultiplier;
+            fadeOut.alpha -= Time.deltaTime * fadeTransitionMultiplier;
+            yield return new WaitForEndOfFrame();
+        }
+        isTransitioning = false;
+    }
+
+    //Utility Functions
+    private List<ItemData> SortListByRound(List<ItemData> list)
+    {
+        list.Sort(delegate (ItemData a, ItemData b) { return a.roundNumber.CompareTo(b.roundNumber); });
+        return list;
+    }
+
+    private void BlowUpRigidbody(Rigidbody body)
+    {
+        body.useGravity = true;
+        body.AddForce(Vector3.up * explosionForce);
+        body.AddTorque(new Vector3(Random.Range(-1, 2), Random.Range(-1, 2), Random.Range(-1, 2)) * explosionForce);
+    }
+
+    private void PlaySoundEffect(AudioSource source, AudioClip[] sounds)
+    {
+        if(sounds.Length < 1)
+        {
+            return;
+        }
+        source.PlayOneShot(sounds[Random.Range(0, sounds.Length)]);
+    }
+
     private float ScaledShakeMagnitude()
     {
-        float scaledMagnitude = (float)tapsThisRound / tapGoal;
+        float scaledMagnitude = (float)currentTaps / currentTapGoal;
         scaledMagnitude = Mathf.Clamp(scaledMagnitude, shakeMinMagnitude, shakeMaxMagnitude);
         return scaledMagnitude;
     }
 
+    private bool TapGoalReached()
+    {
+        return (currentTaps >= currentTapGoal);
+    }
+
+    private void ToggleGameObject(GameObject gameItem)
+    {
+        gameItem.SetActive(!gameItem.activeSelf);
+    }
+
+    //Utility Coroutines
     private IEnumerator ShakeGameObject(GameObject gameObject, float duration, float magnitude)
     {
         float elapsed = 0.0f;
@@ -246,34 +318,5 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
         gameObject.transform.position = new Vector3(0, 0, originalObjectPos.z);
         yield return null;
-    }
-
-    private bool TapGoalReached()
-    {
-        return (tapsThisRound >= tapGoal);
-    }
-
-    private void ToggleGameItem(GameObject gameItem)
-    {
-        gameItem.SetActive(!gameItem.activeSelf);
-    }
-
-    private IEnumerator TransitionGameView(CanvasGroup fadeOut, CanvasGroup fadeIn)
-    {
-        isTransitioning = true;
-        while (fadeIn.alpha != 1 && fadeOut.alpha != 0)
-        {
-            // Transition Multiplier makes the text not show the old item's descriptor, punch cut text
-            fadeIn.alpha += Time.deltaTime * fadeTransitionMultiplier;
-            fadeOut.alpha -= Time.deltaTime * fadeTransitionMultiplier;
-            yield return new WaitForEndOfFrame();
-        }
-        isTransitioning = false;
-    }
-    
-    private List<ItemData> SortListByRound(List<ItemData> list)
-    {
-        list.Sort(delegate (ItemData a, ItemData b) { return a.roundNumber.CompareTo(b.roundNumber); });
-        return list;
     }
 }

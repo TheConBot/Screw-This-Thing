@@ -1,16 +1,16 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(RawImage))]
 public class CameraFeed : MonoBehaviour
 {
+    //Private Vars
+    private RawImage image;
     private WebCamDevice[] allDevices;
     private WebCamDevice frontFacingDevice;
     private WebCamTexture cameraFeed;
-    private RawImage image;
 
+    //MonoBehaviour Functions
     private void Start()
     {
         allDevices = WebCamTexture.devices;
@@ -22,6 +22,7 @@ public class CameraFeed : MonoBehaviour
         }
     }
 
+    //Utility Functions
     private WebCamTexture FrontCameraFeed()
     {
         foreach (var device in allDevices)
