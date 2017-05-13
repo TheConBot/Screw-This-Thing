@@ -1,5 +1,5 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using InControl;
+using System.Collections;
 using UnityEngine;
 
 public class InputManager : MonoBehaviour
@@ -35,6 +35,7 @@ public class InputManager : MonoBehaviour
     private void Update()
     {
         if(ValidTap()) OnTap();
+        if (InControl.InputManager.ActiveDevice.LeftStick.HasChanged) OnSwipe();
     }
 
     //Core Functions
@@ -44,12 +45,17 @@ public class InputManager : MonoBehaviour
         {
             return !onCooldown;
         }
-#if UNITY_EDITOR
-        isValid = Input.GetMouseButtonDown(0) && !onCooldown && InScreenBounds(Input.mousePosition);
-#else
-        isValid = Input.GetTouch(0).phase == TouchPhase.Began && !onCooldown && InScreenBounds(Input.GetTouch(0).position);
-#endif
+        if (TouchManager.TouchCount != 0)
+        {
+            InControl.Touch touch = TouchManager.GetTouch(0);
+            isValid = (touch.phase == TouchPhase.Began && !onCooldown && InScreenBounds(touch.position));
+        }
         return isValid;
+    }
+
+    private void OnSwipe()
+    {
+        GameManager.instance.ScreenSwiped(InControl.InputManager.ActiveDevice.LeftStick.Value);
     }
 
     private void OnTap()

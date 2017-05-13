@@ -18,6 +18,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     private ItemData currentItem;
     private List<GameObject> gameItems = new List<GameObject>();
     private List<ItemData> items = new List<ItemData>();
+    private Vector2 swipeDirection;
     private bool isTransitioning;
     private const int minRound = 1;
     private enum GameState
@@ -43,6 +44,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     [Header("UI References")]
     public CanvasGroup gamePanel;
     public CanvasGroup titlePanel;
+    public GameObject swipePanel;
     public Image timeRadial;
     public Slider tapSlider;
     public TextMeshProUGUI countdownText;
@@ -62,6 +64,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     public float shakeDuration = .15f;
     public float shakeMaxMagnitude = 1;
     public float shakeMinMagnitude = .1f;
+    public float swipeWaitDuration = 3;
 
     //MonoBehaviour Functions
     private void Start()
@@ -116,12 +119,26 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         currentTaps = 0;
         titleText.text = ("Screw This " + currentItem.displayName + "!").ToUpper();
         roundText.text = "Round " + currentRound;
+        PlaySoundEffect(introSource, currentIntroSounds);
     }
 
     private void TerminateGame()
     {
         Debug.Log("You fucked up!");
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+    }
+
+    public void ScreenSwiped(Vector2 direction)
+    {
+        if(gameState != GameState.Ending)
+        {
+            return;
+        }
+        if (swipeDirection == Vector2.zero)
+        {
+            swipeDirection = direction;
+        }
+        Debug.Log(swipeDirection);
     }
 
     public void ScreenTapped()
@@ -185,8 +202,35 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
             TerminateGame();
         }
         StopCoroutine(timerEnumerator);
-        BlowUpRigidbody(currentGameItem.GetComponent<Rigidbody>());
+        ToggleGameObject(swipePanel);
+        float swipeTime = swipeWaitDuration;
+        while(swipeDirection == Vector2.zero && swipeTime > 0)
+        {
+            swipeTime -= Time.deltaTime;
+            yield return new WaitForEndOfFrame();
+        }
+        if(swipeDirection == Vector2.zero)
+        {
+            int rand = Random.Range(1, 5);
+            switch (rand)
+            {
+                case 1:
+                    swipeDirection = Vector2.up;
+                    break;
+                case 2:
+                    swipeDirection = Vector2.down;
+                    break;
+                case 3:
+                    swipeDirection = Vector2.right;
+                    break;
+                case 4:
+                    swipeDirection = Vector2.left;
+                    break;
+            }
+        }
+        BlowUpRigidbody(currentGameItem.GetComponent<Rigidbody>(), swipeDirection);
         PlaySoundEffect(endSource, currentEndSounds);
+        ToggleGameObject(swipePanel);
         float time = explosionDuration;
         while (time > 0)
         {
@@ -203,7 +247,6 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
             yield return null;
         }
         ToggleGameObject(currentGameItem);
-        PlaySoundEffect(introSource, currentIntroSounds);
         gameState = GameState.Idle;
     }
 
@@ -227,6 +270,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         titlePanel.alpha = 1;
         gamePanel.alpha = 0;
         countdownText.text = "";
+        swipePanel.SetActive(false);
     }
     
     private void ResetGameUI()
@@ -262,11 +306,12 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         return list;
     }
 
-    private void BlowUpRigidbody(Rigidbody body)
+    private void BlowUpRigidbody(Rigidbody body, Vector2 direction)
     {
         body.useGravity = true;
-        body.AddForce(Vector3.up * explosionForce);
+        body.AddForce(direction * explosionForce);
         body.AddTorque(new Vector3(Random.Range(-1, 2), Random.Range(-1, 2), Random.Range(-1, 2)) * explosionForce);
+        swipeDirection = Vector2.zero;
     }
 
     private void PlaySoundEffect(AudioSource source, AudioClip[] sounds)
