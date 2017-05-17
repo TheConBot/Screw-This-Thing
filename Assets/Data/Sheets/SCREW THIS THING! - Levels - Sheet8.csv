@@ -1,0 +1,21 @@
+,,,* = Potentially Revise,,,,,,Done,In Progress,N/A,
+Round,Scale,Time (seconds),Object,Display Name,# of Taps,Expected Taps/Sec,Random Taps/Sec,Model File Name,Modeled,Textured,Implemented,Priority
+1,1,4.00,Ant,Defenseless Ant,1,0.25,0.078125,screw-this-thing-shittyDeliv-2.unitypackage,Done,Done,,x
+2,1,4.00,Ear Buds,Pair of Tangled Ear Buds,12,3,0.9375,screw-this-thing-shittyDeliv.unitypackage,Done,eh,,x
+3,1,4.00,Alarm Clock,Blaring Alarm Clock,20,5,1.5625,screw-this-thing-deliv1.unitypackage,Done,Done,,x
+4,2,8.00,Fedora,Questionably Stylish Hat,45,5.625,1.7578125,screw-this-thing-deliv1.unitypackage,Done,Done,,x
+5,2,8.00,Slow Laptop,Slow Laptop,52,6.5,2.03125,screw-this-thing-shittyDeliv.unitypackage,Done,eh,,x
+6,2,8.00,Lawn Mower,Smoking Lawn Mower,57,7.125,2.2265625,screw-this-thing-shittyDeliv.unitypackage,Done,eh,,x
+7,3,12.00,Copy Machine,Jammed Copy Machine,78,6.5,2.03125,screw-this-thing-shittyDeliv.unitypackage,eh,eh,,x
+8,3,12.00,Trump,Fascist President,75,6.25,1.953125,,Done,Done,Done,x
+9,3,12.00,Car,Double Parked Car,81,6.75,2.109375,car.unitypackage,Done,Done,Done,x
+10,4,14.00,Tiny House,Tiny House,99,7.071428571,2.209821429,screw-this-thing-shittyDeliv.unitypackage,eh,eh,,x
+11,4,16.00,Iceberg*,Familiar Iceberg,117,7.3125,2.28515625,screw-this-thing-shittyDeliv-2.unitypackage,eh,eh,,x
+12,4,18.00,Ocean Liner*,Very Familiar Ocean Liner,138,7.666666667,2.395833333,screw-this-thing-shittyDeliv-2.unitypackage,eh,eh,,x
+13,5,20.00,Florida* (Different Large State?),Florida,155,7.75,2.421875,florida.unitypackage,Done,Done,,x
+---,---,---,Lower-right-hand section of US,---,---,---,---,screw-this-thing-shittyDeliv-2.unitypackage,Done,eh,,x
+14,5,25.00,Earth,Earth,200,8,2.5,,,,,3
+15,5,30.00,Player,Loser,242,8.066666667,2.520833333,N/A,N/A,N/A,N/A,N/A
+---,---,---,Giant Fist,---,---,---,---,,,,,3
+,Length (Seconds),195.00,,,,,,,,,,
+,Length (Minutes),3.25,,,,,,,,,,

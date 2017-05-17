@@ -22,6 +22,11 @@ public class CameraFeed : MonoBehaviour
         }
     }
 
+    public void Stop()
+    {
+        cameraFeed.Stop();
+    }
+
     //Utility Functions
     private WebCamTexture FrontCameraFeed()
     {

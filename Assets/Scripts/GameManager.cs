@@ -18,6 +18,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     private GameObject currentGameItem;
     private GameState gameState;
     private IEnumerator timerEnumerator;
+    private InputManager inputManager;
     private ItemData currentItem;
     private List<GameObject> gameItems = new List<GameObject>();
     private List<ItemData> items = new List<ItemData>();
@@ -81,6 +82,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         Time.timeScale = 1;
         InitializeItems();
         InitializeUI();
+        inputManager = GetComponent<InputManager>();
         countdownSounds = gameData.countdownSounds;
         transitionPlaySound = gameData.transitionPlaySound;
         transitionEndSound = gameData.transitionEndSound;
@@ -99,14 +101,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         foreach (var item in items)
         {
             GameObject gameItem;
-            if (item.itemPrefab.GetComponent<CameraFeed>() != null)
-            {
-                gameItem = Instantiate(item.itemPrefab, FindObjectOfType<Canvas>().transform);
-            }
-            else
-            {
-                gameItem = Instantiate(item.itemPrefab);
-            }
+            gameItem = Instantiate(item.itemPrefab);
             gameItem.name = item.displayName;
             gameItems.Add(gameItem);
             ToggleGameObject(gameItem);
@@ -119,7 +114,15 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         currentGameItem = gameItems[index];
         currentRound = currentItem.roundNumber;
         roundTime = currentItem.roundTime;
-        currentTapGoal = currentItem.tapGoal;
+        if (inputManager.randomTapRangeEnabled)
+        {
+            currentTapGoal = Mathf.RoundToInt(Mathf.Clamp(currentItem.tapGoal / inputManager.difficultyAdjuster, 1.0f, Mathf.Infinity));
+            Debug.Log(currentTapGoal);
+        }
+        else
+        {
+            currentTapGoal = currentItem.tapGoal;
+        }
         currentIntroSounds = currentItem.introVOSounds;
         currentTapSounds = currentItem.tapSounds;
         currentEndSounds = currentItem.endSounds;
@@ -131,6 +134,10 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     private void TerminateGame()
     {
         Debug.Log("You fucked up!");
+        if(currentGameItem.GetComponentInChildren<CameraFeed>() != null)
+        {
+            currentGameItem.GetComponentInChildren<CameraFeed>().Stop();
+        }
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
     }
 
@@ -144,7 +151,6 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         {
             swipeDirection = direction;
         }
-        Debug.Log(swipeDirection);
     }
 
     public void ScreenTapped()
@@ -158,6 +164,10 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
             if (TapGoalReached())
             {
                 StartCoroutine(TerminateRound());
+            }
+            else if(inputManager.randomTapRangeEnabled)
+            {
+                inputManager.RandomTapRange();
             }
         }
         else if(gameState == GameState.Idle)
@@ -199,6 +209,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         countdownText.fontSize = origonalFontSize;
         Time.timeScale = 1;
         Handheld.Vibrate();
+        if(inputManager.randomTapRangeEnabled) inputManager.RandomTapRange();
         StartCoroutine(timerEnumerator);
         gameState = GameState.Playing;
     }
@@ -211,8 +222,11 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
             TerminateGame();
             yield return null;
         }
+        inputManager.MaxOutTapRange();
         StopCoroutine(timerEnumerator);
         ToggleGameObject(swipePanel);
+        yield return new WaitForSeconds(0.25f);
+        swipeDirection = Vector2.zero;
         float swipeTime = swipeWaitDuration;
         while((swipeDirection == Vector2.zero && swipeTime > 0) && !debugEnabled)
         {
@@ -238,7 +252,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
                     break;
             }
         }
-        BlowUpRigidbody(currentGameItem.GetComponent<Rigidbody>(), swipeDirection);
+        BlowUpRigidbody(currentGameItem.GetComponentInChildren<Rigidbody>(), swipeDirection);
         PlaySoundEffect(endSource, currentEndSounds);
         ToggleGameObject(swipePanel);
         float time = explosionDuration;
@@ -319,7 +333,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
 
     private void BlowUpRigidbody(Rigidbody body, Vector2 direction)
     {
-        body.useGravity = true;
+        //body.useGravity = true;
         body.AddForce(direction * explosionForce);
         body.AddTorque(new Vector3(Random.Range(-1, 2), Random.Range(-1, 2), Random.Range(-1, 2)) * explosionForce);
         swipeDirection = Vector2.zero;
