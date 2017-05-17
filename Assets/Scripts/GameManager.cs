@@ -12,6 +12,9 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     private AudioClip[] currentEndSounds;
     private AudioClip[] currentIntroSounds;
     private AudioClip[] currentTapSounds;
+    private AudioClip[] countdownSounds;
+    private AudioClip transitionEndSound;
+    private AudioClip transitionPlaySound;
     private GameObject currentGameItem;
     private GameState gameState;
     private IEnumerator timerEnumerator;
@@ -78,9 +81,13 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         Time.timeScale = 1;
         InitializeItems();
         InitializeUI();
+        countdownSounds = gameData.countdownSounds;
+        transitionPlaySound = gameData.transitionPlaySound;
+        transitionEndSound = gameData.transitionEndSound;
         timerEnumerator = Timer();
         SpawnItem(currentIndex);
         ToggleGameObject(currentGameItem);
+        PlaySoundEffect(introSource, currentIntroSounds);
     }
 
     private void InitializeItems()
@@ -119,7 +126,6 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         currentTaps = 0;
         titleText.text = ("Screw This " + currentItem.displayName + "!").ToUpper();
         roundText.text = "Round " + currentRound;
-        PlaySoundEffect(introSource, currentIntroSounds);
     }
 
     private void TerminateGame()
@@ -148,7 +154,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
             currentTaps++;
             PlaySoundEffect(tapSource, currentTapSounds);
             UpdateTapSlider();
-            StartCoroutine(ShakeGameObject(Camera.main.gameObject, shakeDuration, ScaledShakeMagnitude()));
+            if((float)currentTaps / currentTapGoal > 0.1f) StartCoroutine(ShakeGameObject(Camera.main.gameObject, shakeDuration, ScaledShakeMagnitude()));
             if (TapGoalReached())
             {
                 StartCoroutine(TerminateRound());
@@ -165,6 +171,7 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
     {
         gameState = GameState.Starting;
         ResetGameUI();
+        PlaySoundEffect(tapSource, transitionPlaySound);
         StartCoroutine(TransitionGameView(titlePanel, gamePanel));
         while (isTransitioning)
         {
@@ -174,12 +181,14 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         float workingSeconds = secondsBeforeRound;
         int fontCounting = secondsBeforeRound;
         float origonalFontSize = countdownText.fontSize;
+        PlaySoundEffect(tapSource, countdownSounds);
         while (workingSeconds > 0)
         {
             if (workingSeconds < fontCounting - 1)
             {
                 countdownText.fontSize = origonalFontSize;
                 fontCounting--;
+                PlaySoundEffect(tapSource, countdownSounds);
             }
             workingSeconds -= Time.deltaTime;
             countdownText.text = ((int)workingSeconds + 1).ToString();
@@ -200,11 +209,12 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         if (currentRound == maxRound)
         {
             TerminateGame();
+            yield return null;
         }
         StopCoroutine(timerEnumerator);
         ToggleGameObject(swipePanel);
         float swipeTime = swipeWaitDuration;
-        while(swipeDirection == Vector2.zero && swipeTime > 0)
+        while((swipeDirection == Vector2.zero && swipeTime > 0) && !debugEnabled)
         {
             swipeTime -= Time.deltaTime;
             yield return new WaitForEndOfFrame();
@@ -232,21 +242,22 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         PlaySoundEffect(endSource, currentEndSounds);
         ToggleGameObject(swipePanel);
         float time = explosionDuration;
-        while (time > 0)
+        while (time > 0 || endSource.isPlaying)
         {
             time -= Time.deltaTime;
-            currentGameItem.transform.localScale *= 0.995f;
             yield return new WaitForEndOfFrame();
         }
         ToggleGameObject(currentGameItem);
         currentIndex++;
         SpawnItem(currentIndex);
+        PlaySoundEffect(tapSource, transitionEndSound);
         StartCoroutine(TransitionGameView(gamePanel, titlePanel));
         while (isTransitioning)
         {
             yield return null;
         }
         ToggleGameObject(currentGameItem);
+        PlaySoundEffect(introSource, currentIntroSounds);
         gameState = GameState.Idle;
     }
 
@@ -323,9 +334,18 @@ public class GameManager : SingletonMonoBehaviour<GameManager>
         source.PlayOneShot(sounds[Random.Range(0, sounds.Length)]);
     }
 
+    private void PlaySoundEffect(AudioSource source, AudioClip sound)
+    {
+        if (sound == null)
+        {
+            return;
+        }
+        source.PlayOneShot(sound);
+    }
+
     private float ScaledShakeMagnitude()
     {
-        float scaledMagnitude = (float)currentTaps / currentTapGoal;
+        float scaledMagnitude = (float)currentTaps/currentTapGoal;
         scaledMagnitude = Mathf.Clamp(scaledMagnitude, shakeMinMagnitude, shakeMaxMagnitude);
         return scaledMagnitude;
     }
